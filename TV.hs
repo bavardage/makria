@@ -4,29 +4,33 @@ import Text.XML.HXT.Arrow
 import Data.Tree.NTree.TypeDefs hiding (getChildren)
 import Codec.Compression.GZip
 import qualified Data.ByteString.Lazy.Char8 as B 
---import qualified Data.ByteString.Lazy as B
-
-
+import Data.Time
 import Data.List
 
 {-# LANGUAGE Arrows, NoMonomorphismRestriction #-}
 
 type Title = String
 type Description = String
-type Channel = String
-data TVProgramme = TVProgramme { start :: String,
-                             stop :: String,
-                             channel :: Channel,
+type ChannelID = String
+
+data Channel = Channel {chanId :: ChannelID,
+                        chanName :: String
+                       } deriving Show
+
+data TVProgramme = TVProgramme { start :: LocalTime,
+                             stop :: LocalTime,
+                             channel :: ChannelID,
                              title :: Title,
                              subtitle :: Maybe Title,
                              description :: Description
                            }
 
 instance Show TVProgramme where
-    show programme = title programme ++ "(" ++  start programme ++ ")\n"
-                     ++ show (subtitle programme) ++ channel programme ++ "\n"
-                     ++ "------------" ++ "\n"
-                            ++ description programme
+    show programme = ",,,,,,,,,,,,,,,,,,,,,,,,,,," ++ "\n" ++ 
+                     title programme ++ " (" ++  (show $ start programme) ++ ")\n"
+                     ++ show (subtitle programme) ++ " " ++ channel programme ++ "\n"
+                     ++ "_______________" ++ "\n"
+                            ++ description programme ++ "\n\n"
 
 xmltvURL :: [String] -> String
 xmltvURL channels = intercalate ""
@@ -61,7 +65,7 @@ doXMLTV channels = do
   xml <- return $ readString [(a_validate, "0")] undoctyped
   channels <- runX (xml >>> processChannels)
   programmes <- runX (xml >>> processProgrammes)
-  print programmes
+  print channels
 
 dedoctype text = unlines $ dedoctype' $ lines text
                  where
@@ -75,10 +79,14 @@ processChannels =
     isElem >>>
     getChildren >>> --tv
     getChildren >>> --channel
-    getChildren >>> --display-name, icon
-    hasName "display-name" >>>
-    getChildren >>>
-    getText
+    hasName "channel" >>>
+    proc x -> do
+      id' <- getAttrValue "id" -< x
+      name <- getField "display-name" -< x
+      returnA -< Channel {chanId=id',
+                          chanName=name
+                         }
+        
 
 processProgrammes = 
     isElem >>>
@@ -86,8 +94,10 @@ processProgrammes =
     getChildren >>>
     hasName "programme" >>>
     proc x -> do
-      start' <- getAttrValue "start" -< x
-      stop' <- getAttrValue "stop" -< x
+      start'' <- getAttrValue "start" -< x
+      stop'' <- getAttrValue "stop" -< x
+      start' <- returnA -< toTime start''
+      stop' <- returnA -< toTime stop''
       channel' <- getAttrValue "channel" -< x
       title' <- getField "title" -< x
       desc <- getField "desc" -< x
@@ -99,59 +109,15 @@ processProgrammes =
                               subtitle=subtitle',
                               description=desc
                               }
-    
 
-
--- retrieveListingData :: String -> IO String
--- retrieveListingData url = do
---   case parseURI url of
---     Nothing  -> ioError . userError $ "Invalid URL"
---     Just uri -> get uri
-
--- get uri = do
---   eresp <- simpleHTTP (Request uri GET [] "") 
---   case eresp of
---     Left _    -> ioError . userError $ "Failed to get " ++ show uri
---     Right res -> return $ rspBody res 
-
--- type Channel = String --change this to include URI and such
--- data TVProgram = TVProgram { time :: Int,
---                              channel :: Channel,
---                              title :: String,
---                              description :: String
---                            } deriving Show
-
--- doXMLTV = do
---   gzipped <- retrieveListingData xmltvurl
---   asbytes <- return (pack gzipped)
---   ungzipped <- return (decompress asbytes)
---   return $ readString [(a_validate,"0")] (unpack ungzipped)
-
-
--- doChannel channel day = do
---   rss <- retrieveListingData (getRssURL channel day)
---   xml <- return $ readString [(a_validate,"0")] rss
---   results <- runX (xml >>> processChannel channel)
---   print results
-
--- getField field = getChildren >>> hasName field >>> text
--- text = getChildren >>> getText
-
--- processChannel channel = 
---      isElem >>>
---      getChildren >>>
---      getChildren >>>
---      hasName "channel" >>>
---      getChildren >>>
---      hasName "item" >>>
---      proc x -> do 
---        description' <- getField "description" -< x
---        timetitle' <- getField "title" -< x
---        (time'',title'') <- returnA -< break (==':') timetitle'
---        time' <- returnA -< init time''
---        title' <- returnA -< tail $ tail title''
---        returnA -< TVProgram { time = read time',
---                               channel = channel,
---                               title = title',
---                               description = description'
---                             }
+toTime :: String -> LocalTime
+toTime t = LocalTime day tod
+    where
+      day = fromGregorian (read (time !! 0)) (read (time !! 1)) (read (time !! 2))
+      tod = TimeOfDay {todHour = read (time !! 3),
+                       todMin = read (time !! 4),
+                       todSec = (fromIntegral $ read (time !! 5)) 
+                      }
+      time = splitTime t [4,2,2,2,2,2]
+      splitTime t [] = [t]
+      splitTime t (x:xs) = fst y : splitTime (snd y) xs where y = splitAt x t
