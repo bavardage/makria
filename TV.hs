@@ -1,3 +1,13 @@
+{-# LANGUAGE Arrows, NoMonomorphismRestriction #-}
+module TV 
+    (Channel(..),
+     TVProgramme(..),
+     doXMLTV,
+     blebXMLTV,
+     programmeLength,
+     programmeLengthMinutes,
+     ) where
+
 import Network.HTTP
 import Network.URI
 import Text.XML.HXT.Arrow
@@ -7,7 +17,7 @@ import qualified Data.ByteString.Lazy.Char8 as B
 import Data.Time
 import Data.List
 
-{-# LANGUAGE Arrows, NoMonomorphismRestriction #-}
+
 
 type Title = String
 type Description = String
@@ -32,16 +42,35 @@ instance Show TVProgramme where
                      ++ "_______________" ++ "\n"
                             ++ description programme ++ "\n\n"
 
-xmltvURL :: [String] -> String
-xmltvURL channels = intercalate ""
+instance Eq TVProgramme where
+    (==) p q = (start p) == (start q)
+
+instance Ord TVProgramme where
+    compare p q = compare (start p) (start q)
+
+programmeLength :: TVProgramme -> NominalDiffTime
+programmeLength p = diffUTCTime (localTimeToUTC utc $ stop p) (localTimeToUTC utc $ start p)
+
+programmeLengthMinutes = floor .  (/ 60) . programmeLength
+
+{--------
+ Get the url of the feed for given channels using the bleb service
+-}-------
+
+blebXMLTV :: [String] -> String
+blebXMLTV channels = intercalate ""
                     ["http://bleb.org/tv/data/listings?days=",
-                     "0..6",
+                     "0",
                      "&format=XMLTV&channels=",
                      channels',
                      "&file=gzip"
                      ]
     where
       channels' = intercalate "," channels
+
+{--------
+ Get and process xmltv data
+-}-------
 
 type Request_BS = Request B.ByteString
 
@@ -58,14 +87,14 @@ get uri = do
     Left _ -> ioError . userError $ "Failed to get " ++ show uri
     Right res -> return $ rspBody res
 
-doXMLTV channels = do
-  gzipped <- retrieveListingData $ xmltvURL channels
+doXMLTV url = do
+  gzipped <- retrieveListingData url
   ungzipped <- return $ decompress gzipped
   undoctyped <- return $ dedoctype (B.unpack ungzipped)
   xml <- return $ readString [(a_validate, "0")] undoctyped
   channels <- runX (xml >>> processChannels)
   programmes <- runX (xml >>> processProgrammes)
-  print channels
+  return (channels, programmes)
 
 dedoctype text = unlines $ dedoctype' $ lines text
                  where
@@ -86,7 +115,6 @@ processChannels =
       returnA -< Channel {chanId=id',
                           chanName=name
                          }
-        
 
 processProgrammes = 
     isElem >>>
