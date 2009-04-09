@@ -6,6 +6,7 @@ module TV
      blebXMLTV,
      programmeLength,
      programmeLengthMinutes,
+     utcStart, utcStop,
      ) where
 
 import Network.HTTP
@@ -48,8 +49,11 @@ instance Eq TVProgramme where
 instance Ord TVProgramme where
     compare p q = compare (start p) (start q)
 
+utcStart p = localTimeToUTC utc $ start p
+utcStop p = localTimeToUTC utc $ stop p
+
 programmeLength :: TVProgramme -> NominalDiffTime
-programmeLength p = diffUTCTime (localTimeToUTC utc $ stop p) (localTimeToUTC utc $ start p)
+programmeLength p = diffUTCTime (utcStop p) (utcStart p)
 
 programmeLengthMinutes = floor .  (/ 60) . programmeLength
 
@@ -60,7 +64,7 @@ programmeLengthMinutes = floor .  (/ 60) . programmeLength
 blebXMLTV :: [String] -> String
 blebXMLTV channels = intercalate ""
                     ["http://bleb.org/tv/data/listings?days=",
-                     "0",
+                     "0..6",
                      "&format=XMLTV&channels=",
                      channels',
                      "&file=gzip"
