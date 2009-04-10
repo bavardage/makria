@@ -6,6 +6,7 @@ module TV
      blebXMLTV,
      programmeLength,
      programmeLengthMinutes,
+     timeBetweenProgrammesMinutes,
      utcStart, utcStop,
      ) where
 
@@ -56,6 +57,10 @@ programmeLength :: TVProgramme -> NominalDiffTime
 programmeLength p = diffUTCTime (utcStop p) (utcStart p)
 
 programmeLengthMinutes = floor .  (/ 60) . programmeLength
+
+timeBetweenProgrammesMinutes p p' = floor $ (/ 60) $ (diffUTCTime 
+                           (utcStart p)
+                           (utcStart p'))
 
 {--------
  Get the url of the feed for given channels using the bleb service
