@@ -8,6 +8,7 @@ module TV
      programmeLengthMinutes,
      timeBetweenProgrammesMinutes,
      utcStart, utcStop,
+     channelName,
      ) where
 
 import Network.HTTP
@@ -61,6 +62,10 @@ programmeLengthMinutes = floor .  (/ 60) . programmeLength
 timeBetweenProgrammesMinutes p p' = floor $ (/ 60) $ (diffUTCTime 
                            (utcStart p)
                            (utcStart p'))
+channelName :: [Channel] -> TVProgramme -> String
+channelName [] _ = "unknown"
+channelName (c:cs) p | chanId c == channel p = chanName c
+                     | otherwise = channelName cs p
 
 {--------
  Get the url of the feed for given channels using the bleb service
