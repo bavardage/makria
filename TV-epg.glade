@@ -9,80 +9,10 @@
         <property name="visible">True</property>
         <property name="orientation">vertical</property>
         <child>
-          <widget class="GtkVBox" id="vbox2">
+          <widget class="GtkLabel" id="dummylabel">
             <property name="visible">True</property>
-            <property name="orientation">vertical</property>
-            <child>
-              <widget class="GtkLabel" id="header">
-                <property name="visible">True</property>
-                <property name="label" translatable="yes">Tv Programmes</property>
-              </widget>
-              <packing>
-                <property name="expand">False</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <widget class="GtkHBox" id="hbox1">
-                <property name="visible">True</property>
-                <child>
-                  <widget class="GtkLabel" id="label1">
-                    <property name="visible">True</property>
-                    <property name="label" translatable="yes">Time Filter</property>
-                  </widget>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">False</property>
-                    <property name="position">0</property>
-                  </packing>
-                </child>
-                <child>
-                  <widget class="GtkHScale" id="timescale">
-                    <property name="visible">True</property>
-                    <property name="lower_stepper_sensitivity">off</property>
-                    <property name="value_pos">right</property>
-                  </widget>
-                  <packing>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-              </widget>
-              <packing>
-                <property name="expand">False</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-            <child>
-              <widget class="GtkHBox" id="hbox2">
-                <property name="visible">True</property>
-                <child>
-                  <widget class="GtkLabel" id="label2">
-                    <property name="visible">True</property>
-                    <property name="label" translatable="yes">Showing programs from:</property>
-                  </widget>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">False</property>
-                    <property name="position">0</property>
-                  </packing>
-                </child>
-                <child>
-                  <widget class="GtkLabel" id="cutoffLabel">
-                    <property name="visible">True</property>
-                    <property name="label" translatable="yes">label</property>
-                  </widget>
-                  <packing>
-                    <property name="padding">7</property>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-              </widget>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">False</property>
-                <property name="position">2</property>
-              </packing>
-            </child>
+            <property name="xalign">0.4699999988079071</property>
+            <property name="label" translatable="yes">File Edit Help menubar goes here</property>
           </widget>
           <packing>
             <property name="expand">False</property>
@@ -90,59 +20,128 @@
           </packing>
         </child>
         <child>
-          <widget class="GtkScrolledWindow" id="scrolledwindow1">
+          <widget class="GtkHBox" id="hbox1">
             <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="vadjustment">0 0 9999 17.300000000000001 155.70000000000002 173</property>
-            <property name="hscrollbar_policy">automatic</property>
-            <property name="vscrollbar_policy">automatic</property>
             <child>
-              <widget class="GtkViewport" id="viewport1">
+              <widget class="GtkVBox" id="vbox2">
                 <property name="visible">True</property>
-                <property name="resize_mode">queue</property>
+                <property name="orientation">vertical</property>
                 <child>
-                  <widget class="GtkDrawingArea" id="drawingarea1">
-                    <property name="width_request">10000</property>
+                  <widget class="GtkVBox" id="vbox3">
                     <property name="visible">True</property>
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <widget class="GtkLabel" id="filterLabel">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Filters:</property>
+                      </widget>
+                      <packing>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkLabel" id="label4">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">label</property>
+                      </widget>
+                      <packing>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkLabel" id="label2">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">label</property>
+                      </widget>
+                      <packing>
+                        <property name="position">2</property>
+                      </packing>
+                    </child>
                   </widget>
+                  <packing>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <widget class="GtkScrolledWindow" id="scrolledwindow1">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="hscrollbar_policy">automatic</property>
+                    <property name="vscrollbar_policy">automatic</property>
+                    <child>
+                      <widget class="GtkTreeView" id="programmeTreeView">
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="show_expanders">False</property>
+                      </widget>
+                    </child>
+                  </widget>
+                  <packing>
+                    <property name="position">1</property>
+                  </packing>
                 </child>
               </widget>
+              <packing>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <widget class="GtkLabel" id="label1">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">label</property>
+              </widget>
+              <packing>
+                <property name="position">1</property>
+              </packing>
             </child>
           </widget>
           <packing>
             <property name="position">1</property>
+          </packing>
+        </child>
+        <child>
+          <widget class="GtkStatusbar" id="statusbar1">
+            <property name="visible">True</property>
+            <property name="spacing">2</property>
+          </widget>
+          <packing>
+            <property name="expand">False</property>
+            <property name="position">2</property>
           </packing>
         </child>
       </widget>
     </child>
   </widget>
   <widget class="GtkWindow" id="splash">
+    <property name="width_request">300</property>
+    <property name="height_request">200</property>
+    <property name="type">popup</property>
     <property name="title" translatable="yes">Loading...</property>
-    <property name="window_position">center</property>
-    <property name="type_hint">menu</property>
-    <property name="opacity">0.80000000000000004</property>
+    <property name="window_position">center-always</property>
+    <property name="default_width">500</property>
+    <property name="default_height">300</property>
+    <property name="type_hint">utility</property>
+    <property name="skip_taskbar_hint">True</property>
+    <property name="skip_pager_hint">True</property>
+    <property name="decorated">False</property>
+    <property name="opacity">0.90000000000000002</property>
     <child>
-      <widget class="GtkVBox" id="vbox1">
+      <widget class="GtkHBox" id="hbox1">
         <property name="visible">True</property>
-        <property name="orientation">vertical</property>
         <child>
-          <widget class="GtkLabel" id="loadingLabel">
+          <widget class="GtkLabel" id="label1">
             <property name="visible">True</property>
-            <property name="label" translatable="yes">Loading... Please Wait</property>
-            <property name="justify">fill</property>
+            <property name="label" translatable="yes">&lt;big&gt;Loading&lt;/big&gt;
+&lt;i&gt;Please wait...&lt;/i&gt;
+
+XMLTV data is being downloaded and parsed...
+</property>
+            <property name="use_markup">True</property>
+            <property name="justify">center</property>
+            <property name="ellipsize">end</property>
           </widget>
           <packing>
-            <property name="expand">False</property>
             <property name="position">0</property>
-          </packing>
-        </child>
-        <child>
-          <widget class="GtkImage" id="image1">
-            <property name="visible">True</property>
-            <property name="pixbuf">patience.gif</property>
-          </widget>
-          <packing>
-            <property name="position">1</property>
           </packing>
         </child>
       </widget>
