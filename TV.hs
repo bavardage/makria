@@ -8,6 +8,8 @@ module TV
      programmeLengthMinutes,
      timeBetweenProgrammesMinutes,
      utcStart, utcStop,
+     niceTime,
+     areTheSame,
      channelName,
      ) where
 
@@ -19,6 +21,7 @@ import Codec.Compression.GZip
 import qualified Data.ByteString.Lazy.Char8 as B 
 import Data.Time
 import Data.List
+import System.Locale
 
 
 
@@ -62,10 +65,18 @@ programmeLengthMinutes = floor .  (/ 60) . programmeLength
 timeBetweenProgrammesMinutes p p' = floor $ (/ 60) $ (diffUTCTime 
                            (utcStart p)
                            (utcStart p'))
+
+niceTime :: (FormatTime t) => t -> String
+niceTime = formatTime defaultTimeLocale "%a %e %H:%M"
+
 channelName :: [Channel] -> TVProgramme -> String
 channelName [] _ = "unknown"
 channelName (c:cs) p | chanId c == channel p = chanName c
                      | otherwise = channelName cs p
+
+areTheSame p p' = (start p == start p') &&
+                  (stop p == stop p') &&
+                  (channel p == channel p')
 
 {--------
  Get the url of the feed for given channels using the bleb service
