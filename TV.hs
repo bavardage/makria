@@ -14,7 +14,7 @@ module TV
 import Network.HTTP
 import Network.URI
 import Text.XML.HXT.Arrow
-import Data.Tree.NTree.TypeDefs hiding (getChildren)
+--import Data.Tree.NTree.TypeDefs hiding (getChildren)
 import Codec.Compression.GZip
 import qualified Data.ByteString.Lazy.Char8 as B 
 import Data.Time
