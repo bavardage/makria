@@ -14,30 +14,27 @@ import DrawProgrammes
 import Ranker
 import ListFilter
 -----------------------
-chans = ["bbc1", "bbc2", "bbc3", "bbc4", "e4", "film_four", "virgin1", "more4", "dave"]
+--chans = ["bbc1", "bbc2", "bbc3", "bbc4", "e4", "film_four", "virgin1", "more4", "dave"]
+chans = ["film_four", "bbc1"]
 rankerFilename = "keywords.dat"
 -----------------------
 
-data GlobalState a = GlobalState {stXML :: GladeXML,
-                                  stChans :: [Channel],
-                                  stProgs :: [TVProgramme],
-                                  stRanker :: a,
-                                  stModels :: Maybe (TypedTreeModelSort TVProgramme, ListStore TVProgramme)
+data GlobalState = GlobalState 
+    {stXML :: GladeXML,
+     stChans :: [Channel],
+     stProgs :: [TVProgramme],
+     stModels :: (TypedTreeModelSort TVProgramme, 
+                  TypedTreeModelSort TVProgramme,
+                  ListFilter TVProgramme,
+                  ListStore TVProgramme)
                                  }
 
-type StateRef a = IORef (GlobalState a)
+type StateRef a = IORef (GlobalState)
 
-newGlobalStateRef :: Ranker a => 
-                     GladeXML 
-                  -> [Channel] 
-                  -> [TVProgramme] 
-                  -> a
-                  -> IO (StateRef a)
-newGlobalStateRef xml cs ps ra= newIORef (GlobalState {stXML = xml, 
+newGlobalStateRef xml cs ps mos = newIORef (GlobalState {stXML = xml, 
                                                        stChans = cs, 
                                                        stProgs = ps,
-                                                       stRanker = ra,
-                                                       stModels = Nothing
+                                                       stModels = mos
                                                       })
 
 
@@ -59,27 +56,46 @@ loadDataAndShowMainWindow splash xml channels = do
   window <- xmlGetWidget xml castToWindow "mainwindow"
   onDestroy window mainQuit
 
-  (cs, ps') <- doXMLTV $ blebXMLTV channels
-  ps <- filterOldProgrammes ps'
+  (cs, ps'') <- doXMLTV $ blebXMLTV channels
+  ps' <- filterOldProgrammes ps''
 
   ranker <- (readIn rankerFilename) 
-              `catch` (\_ -> return $ KeywordRanker([]))
+              `catch` (\ _ -> newKeywordRanker [])
+  ps <- return $ map (\ p -> p{rankOf=(Just (rank ranker p))}) ps'
 
-  ref <- newGlobalStateRef xml cs ps ranker 
+  models <- (createModelsFor ps) 
+  ref <- newGlobalStateRef xml cs ps models
 
   setupProgramTreeView ref
   setupDrawingArea ref
   print "presetup"
-  lstore' <- setupRecommendedProgrammes ref
+  setupRecommendedProgrammes ref
   print "postsetup"
-  lstore <- listFilterGetModel lstore'
-  setupRankerOptions ref lstore
+  setupRankerOptions ref ranker
+
+  setupProgramTreeViewSignals ref
+  setupRecommendedProgrammesSignals ref
 
   widgetHide splash
   widgetShowAll window 
 
+createModelsFor ps = do
+  rawmodel <- MV.listStoreNew ps
+  filtermodel <- listFilterNewWithModel rawmodel []
+  mainsortmodel <- MV.treeModelSortNewWithModel rawmodel
+  secondsortmodel <- MV.treeModelSortNewWithModel filtermodel
+  return  (mainsortmodel, secondsortmodel, filtermodel, rawmodel)
 
-makeColumn :: (Ord o) => MV.TreeView -> MV.TypedTreeModelSort TVProgramme -> MV.ListStore TVProgramme -> String -> Int -> (TVProgramme -> String) -> (TVProgramme -> o) -> IO ()
+
+makeColumn :: (Ord o, 
+               MV.TypedTreeModelClass ttm) => 
+              MV.TreeView -> 
+              MV.TypedTreeModelSort a -> 
+              ttm a -> 
+              String -> 
+              Int -> 
+             (a -> String) -> (a -> o) -> 
+             IO (MV.CellRendererText,MV.TreeViewColumn)
 makeColumn view model rawmodel title n text sortF = do
   treeSortableSetSortFunc model n $ \iter1 iter2 -> do
      p1 <- MV.treeModelGetRow rawmodel iter1
@@ -95,24 +111,16 @@ makeColumn view model rawmodel title n text sortF = do
      set rend [MV.cellText := text p]
   MV.treeViewAppendColumn view col
   MV.treeViewColumnSetSortColumnId col n
-
-insertModelsIntoRef ref model rawmodel = do
-  gs <- readIORef ref
-  newGS <- return $ gs {stModels = Just (model, rawmodel)}
-  writeIORef ref newGS
+  return (rend,col)
 
 setupProgramTreeView :: StateRef a -> IO ()
 setupProgramTreeView ref = do
   xml <- liftM stXML $ readIORef ref
   ps <- liftM stProgs $ readIORef ref
   cs <- liftM stChans $ readIORef ref
+  (model,_,_,rawmodel) <- liftM stModels $ readIORef ref
   view <- xmlGetWidget xml MV.castToTreeView "programmeTreeView"
   
-  rawmodel <- MV.listStoreNew ps
-  model <- MV.treeModelSortNewWithModel rawmodel
-
-  insertModelsIntoRef ref model rawmodel
-
   MV.treeSortableSetDefaultSortFunc model $ \iter1 iter2 -> do
      p1 <- MV.treeModelGetRow rawmodel iter1
      p2 <- MV.treeModelGetRow rawmodel iter2
@@ -124,7 +132,11 @@ setupProgramTreeView ref = do
   makeColumn view model rawmodel "Start" 5 (niceTime.start) start
   makeColumn view model rawmodel "Channel" 6 (channelName cs) (channelName cs)
   makeColumn view model rawmodel "Length" 7 ((++"m").show.programmeLengthMinutes) programmeLengthMinutes
+  return ()
 
+setupProgramTreeViewSignals ref = do
+  xml <- liftM stXML $ readIORef ref
+  view <- xmlGetWidget xml MV.castToTreeView "programmeTreeView"
   view `on` cursorChanged $ do
     showSelectedProgramme ref
   return ()
@@ -134,103 +146,129 @@ setupDrawingArea ref = do
   da <- xmlGetWidget xml castToDrawingArea "programInfo"
   da `onExpose` \_ -> showSelectedProgramme ref >> return True
 
-setupRankerOptions ref lstore = do
-  xml <- liftM stXML $ readIORef ref
-  view <- xmlGetWidget xml castToTextView "keywordEntry"
-  buffer <- textViewGetBuffer view
-
-  KeywordRanker(kws) <- liftM stRanker $ readIORef ref
-  textBufferSetText buffer $ show kws
-
-  button <- xmlGetWidget xml castToButton "updateButton"
-  onClicked button $ do
-    text <- get buffer textBufferText
-    gs <- readIORef ref
-    kws' <- return $ (reads text :: [([(String, Float)], String)]) --WTF!?
-    case kws' of  
-      [] -> do
-        kws <- liftM keywords (liftM stRanker $ readIORef ref)
-        textBufferSetText buffer $ show kws
-      _ -> do
-        newgs <- writeIORef ref (gs{stRanker = (KeywordRanker(read text))})
-        saveRankerOptions ref
-        updateRecommendedProgrammes ref lstore
-    return ()
-  return ()
-    
-saveRankerOptions ref = do
-    ranker <- liftM stRanker $ readIORef ref
-    writeOut ranker rankerFilename
-
 setupRecommendedProgrammes ref = do
+  print "setting up recommended programmes"
   xml <- liftM stXML $ readIORef ref
   view <- xmlGetWidget xml castToTreeView "recommendedTreeView"
-  ps <- liftM stProgs $ readIORef ref
-  ranker <- liftM stRanker $ readIORef ref
+  (_,model,filtermodel,_) <- liftM stModels $ readIORef ref
 
-  ranked <- return $ map (\p -> (p, (rank ranker p))) ps
-  sorted <- return $ sortBy (\ (_,r) (_,r') -> compare r' r) ranked
-  filtered <- return $ filter (\ (_,r) -> r > 0) sorted
-              
-  print "model"
-  model <- MV.listStoreNew filtered
-  print "filteredmodel"
-  filteredmodel <- listFilterNewWithModel model [(\(p,_) -> title p == "Top Gear")]
-  print "donefilteredmodel"
-  print "stampresets are"
-  printStamp filteredmodel
-  MV.treeViewSetModel view filteredmodel
-  print "done set"
-  print "stampostsets are"
-  printStamp filteredmodel
+  MV.treeSortableSetDefaultSortFunc model $ \iter1 iter2 -> do
+    p1 <- MV.treeModelGetRow filtermodel iter1
+    p2 <- MV.treeModelGetRow filtermodel iter2
+    return (compare (rankOf p2) (rankOf p1))
 
+  MV.treeViewSetModel view model
 
+  listFilterAddFilter filtermodel ((>Just 0.5).rankOf)
 
-  namecol <- MV.treeViewColumnNew
-  MV.treeViewColumnSetTitle namecol "Title"
-  namerend <- MV.cellRendererTextNew
-  MV.cellLayoutPackStart namecol namerend True
-  MV.cellLayoutSetAttributeFunc namecol namerend filteredmodel $ \iter -> do
-      (p,_) <- MV.treeModelGetRow filteredmodel iter
-      set namerend [MV.cellText := title p]
-  print "pre append col"
-  MV.treeViewAppendColumn view namecol
-  print "post apepnd col"
+  makeColumn view model filtermodel "Title" 1 title title
+  makeColumn view model filtermodel "Time" 2 (niceTime.start) start
+  makeColumn view model filtermodel "Rank" 3 showRank rankOf
 
-  rankcol <- MV.treeViewColumnNew
-  MV.treeViewColumnSetTitle rankcol "Rank"
-  rankrend <- MV.cellRendererTextNew
-  MV.cellLayoutPackStart rankcol rankrend True
-  MV.cellLayoutSetAttributeFunc rankcol rankrend filteredmodel $ \iter -> do
-      (_,r) <- MV.treeModelGetRow filteredmodel iter
-      set rankrend [MV.cellText := show r]
-  MV.treeViewAppendColumn view rankcol
-  
+  return () 
+  where
+    showRank p = showRank' $ (rankOf p)
+    showRank' (Just r) = show r
+    showRank' Nothing = "0"
+
+setupRecommendedProgrammesSignals ref = do
+  xml <- liftM stXML $ readIORef ref
+  view <- xmlGetWidget xml castToTreeView "recommendedTreeView"
+  (_,model,filtermodel,_) <- liftM stModels $ readIORef ref
   view `on` cursorChanged $ do
     (path, col) <- MV.treeViewGetCursor view
-    iter' <- MV.treeModelGetIter filteredmodel path
-    case iter' of 
+    iter' <- MV.treeModelGetIter model path
+    case iter' of
       Nothing -> return ()
       Just iter -> do
-        (p,r) <- MV.treeModelGetRow filteredmodel iter
+        cIter <- MV.treeModelSortConvertIterToChildIter model iter
+        p <- MV.treeModelGetRow filtermodel cIter
         selectProgramme ref p
-  return filteredmodel
+      
 
-updateRecommendedProgrammes ref model = do
+setupRankerOptions ref ranker = do
   xml <- liftM stXML $ readIORef ref
-  view <- xmlGetWidget xml castToTreeView "recommendedTreeView"
-  ps <- liftM stProgs $ readIORef ref
-  ranker <- liftM stRanker $ readIORef ref 
+  view <- xmlGetWidget xml MV.castToTreeView "keywordTreeView"
+  newKeywordButton <- xmlGetWidget xml castToButton "newKeywordButton"
+  updateButton <- xmlGetWidget xml castToButton "updateButton"
+  deleteButton <- xmlGetWidget xml castToButton "deleteButton"
+  keywords <- return $ keywords ranker
 
-  ranked <- return $ map (\p -> (p, (rank ranker p))) ps
-  sorted <- return $ sortBy (\ (_,r) (_,r') -> compare r' r) ranked
-  filtered <- return $ filter (\ (_,r) -> r > 0) sorted
+  rawmodel <- MV.listStoreNew keywords
+  model <- MV.treeModelSortNewWithModel rawmodel
 
-  listStoreClear model
-  mapM_ (listStoreAppend model) filtered
+  MV.treeViewSetModel view model
+
+  (keyrend, keycol) <- makeColumn view model rawmodel "Keyword" 1 fst fst
+  set keyrend [cellTextEditable := True, cellTextEditableSet := True]
+  (rankrend, rankcol) <- makeColumn view model rawmodel "Weighting" 2 (show.snd) snd
+  set rankrend [cellTextEditable := True, cellTextEditableSet := True]
   
+  on keyrend edited $ \path str -> do
+    iter' <- MV.treeModelGetIter model path
+    case iter' of
+      Nothing -> return ()
+      Just iter -> do
+        cIter <- MV.treeModelSortConvertIterToChildIter model iter
+        (_,r) <- MV.treeModelGetRow rawmodel cIter
+        [n] <- MV.treeModelGetPath rawmodel cIter
+        listStoreSetValue rawmodel n (str,r)
+  on rankrend edited $ \path str -> do
+    iter' <- MV.treeModelGetIter model path
+    case iter' of
+      Nothing -> return ()
+      Just iter -> do
+        cIter <- MV.treeModelSortConvertIterToChildIter model iter
+        (kw,r) <- MV.treeModelGetRow rawmodel cIter
+        [n] <- (MV.treeModelGetPath rawmodel cIter)
+        r'' <- return (reads str :: [(Float,String)])
+        case r'' of 
+          [] -> listStoreSetValue rawmodel n (kw,r)
+          ((r',_):_) -> listStoreSetValue rawmodel n (kw,r')
+
+  (mainsortmodel,secondsortmodel,filtermodel,rawlistmodel) <- liftM stModels $ readIORef ref
+
+  onClicked newKeywordButton $ do
+    n <- listStoreAppend rawmodel ("",0)
+    iter' <- treeModelIterNthChild rawmodel Nothing n
+    case iter' of
+      Nothing -> return ()
+      Just iter -> do
+        pIter <- treeModelSortConvertChildIterToIter model iter
+        pPath <- treeModelGetPath model pIter
+        treeViewSetCursor view pPath (Just (keycol,True))
+    return ()
+
+  onClicked updateButton $ do
+    keywords <- listStoreToList rawmodel
+    newkr <- newKeywordRanker keywords
+    writeOut newkr rankerFilename
+
+    ps' <- liftM stProgs $ readIORef ref
+    ps <- return $ map (\p -> p{rankOf=(Just (rank newkr p))}) ps'
+    gs <- readIORef ref
+    newgs <- return $ gs {stProgs = ps}
+    writeIORef ref newgs
+
+    listStoreClear rawlistmodel
+    mapM (listStoreAppend rawlistmodel) ps
+    return ()
+  
+  onClicked deleteButton $ do
+    (path,_) <- treeViewGetCursor view
+    case path of
+      [] -> return ()
+      [n] -> do
+        size <- listStoreGetSize rawmodel
+        if n < size
+           then listStoreRemove rawmodel n
+           else return ()
+      _ -> return ()
+
   return ()
-  
+
+
+
 
 showSelectedProgramme ref = do
   p' <- selectedProgramme ref
@@ -240,28 +278,24 @@ showSelectedProgramme ref = do
 selectedProgramme ref = do
   xml <- liftM stXML $ readIORef ref
   view <- xmlGetWidget xml MV.castToTreeView "programmeTreeView"
-  models' <- liftM stModels $ readIORef ref
-  case models' of 
+  (model,_,_,rawmodel) <- liftM stModels $ readIORef ref
+  
+  (path, col) <- MV.treeViewGetCursor view
+  iter' <- MV.treeModelGetIter model path
+  case iter' of 
     Nothing -> return Nothing
-    Just (model,rawmodel) -> do
-      (path, col) <- MV.treeViewGetCursor view
-      iter' <- MV.treeModelGetIter model path
-      case iter' of 
-        Nothing -> return Nothing
-        Just iter -> do
-          cIter <- MV.treeModelSortConvertIterToChildIter model iter
-          p <- MV.treeModelGetRow rawmodel cIter
-          return (Just p)
+    Just iter -> do
+      cIter <- MV.treeModelSortConvertIterToChildIter model iter
+      p <- MV.treeModelGetRow rawmodel cIter
+      return (Just p)
 
 selectProgramme ref p = do
   xml <- liftM stXML $ readIORef ref
   view <- xmlGetWidget xml MV.castToTreeView "programmeTreeView"
-  models' <- liftM stModels $ readIORef ref
-  case models' of 
-    Nothing -> return ()
-    Just (model,rawmodel) -> do
-      fIter <- treeModelGetIterFirst model
-      selectProgramme' view fIter model rawmodel p
+  (model,_,_,rawmodel) <- liftM stModels $ readIORef ref
+  
+  fIter <- treeModelGetIterFirst model
+  selectProgramme' view fIter model rawmodel p
   where
     selectProgramme' view iter' model rawmodel p = do
       case iter' of 

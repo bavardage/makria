@@ -38,7 +38,8 @@ data TVProgramme = TVProgramme { start :: LocalTime,
                              channel :: ChannelID,
                              title :: Title,
                              subtitle :: Maybe Title,
-                             description :: Description
+                             description :: Description,
+                             rankOf :: Maybe Float
                            }
 
 instance Show TVProgramme where
@@ -160,7 +161,8 @@ processProgrammes =
                               channel=channel',
                               title=title',
                               subtitle=subtitle',
-                              description=desc
+                              description=desc,
+                              rankOf=Nothing
                               }
 
 toTime :: String -> LocalTime

@@ -1,11 +1,26 @@
 
 module Ranker
+    (Ranker,
+     keywords,
+     normalised,
+     rankMap,
+     cachedRank,
+     rank,
+     writeOut,
+     readIn,
+     newKeywordRanker,
+    )
 where
 
+import Prelude hiding (lookup)
 import Normaliser
 import TV
+import qualified Data.Map as Map
+import Data.IORef
 
 class Ranker a where
+    cachedRank :: a -> TVProgramme -> IO Float
+    cachedRank kr p = return $ rank kr p
     rank :: a -> TVProgramme -> Float
     writeOut :: a -> String -> IO ()
     readIn :: String -> IO (a)
@@ -14,16 +29,38 @@ class Ranker a where
 {- Keyword Ranker --------------------------------------}
 type WeightedKeyword = (String, Float)
 
-data KeywordRanker = KeywordRanker {keywords :: [WeightedKeyword]} 
-                     deriving Show
+data KeywordRanker = KeywordRanker {keywords :: [WeightedKeyword],
+                                    normalised :: [WeightedKeyword],
+                                    rankMap :: IORef (Map.Map TVProgramme Float)} 
+                     
+
+newKeywordRanker :: [WeightedKeyword] -> IO KeywordRanker 
+newKeywordRanker kws = do
+  ref <- newIORef Map.empty
+  return KeywordRanker {keywords = kws,
+                        normalised = (map (\(kw,r) -> (normaliseWord kw,r)) kws),
+                        rankMap = ref}
+
 
 instance Ranker KeywordRanker where
-    writeOut (KeywordRanker(kws)) filename = writeFile filename (show kws)
-    readIn f = readFile f >>= \x -> return (KeywordRanker(read x))
-    rank (KeywordRanker(kws)) p = sum $ map (rankKR kws) [description p,
-                                                           title p]
+    writeOut kr filename = writeFile filename $ show $ keywords kr
 
-rankKR kws str= rankKR' (map (\(kw,r) -> (normaliseWord kw,r)) kws) (normaliseText str)
+    readIn f = readFile f >>= \x -> newKeywordRanker (read x)
+
+    rank kr p = sum $ map (rankKR $ normalised kr) [description p,
+                                                  title p]
+
+    cachedRank kr p = do
+      rankmap <- readIORef (rankMap kr)
+      result <- return $ (Map.lookup p) rankmap
+      case result of
+        Just r -> return r
+        Nothing -> do
+          r <- return $ rank kr p
+          writeIORef (rankMap kr) (Map.insert p r rankmap)
+          return r
+
+rankKR kws str= rankKR' kws (normaliseText str)
     where
       rankKR' kws words = sum $ map (valueOfWord kws) words
 

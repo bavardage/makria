@@ -247,16 +247,47 @@
                           <widget class="GtkAlignment" id="alignment4">
                             <property name="visible">True</property>
                             <child>
-                              <widget class="GtkScrolledWindow" id="scrolledwindow3">
+                              <widget class="GtkVBox" id="vbox2">
                                 <property name="visible">True</property>
-                                <property name="can_focus">True</property>
-                                <property name="hscrollbar_policy">automatic</property>
-                                <property name="vscrollbar_policy">automatic</property>
+                                <property name="orientation">vertical</property>
                                 <child>
-                                  <widget class="GtkTreeView" id="recommendedTreeView">
+                                  <widget class="GtkExpander" id="expander1">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <child>
+                                      <placeholder/>
+                                    </child>
+                                    <child>
+                                      <widget class="GtkLabel" id="filtersLabel">
+                                        <property name="visible">True</property>
+                                        <property name="label" translatable="yes">Filters</property>
+                                      </widget>
+                                      <packing>
+                                        <property name="type">label_item</property>
+                                      </packing>
+                                    </child>
                                   </widget>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <widget class="GtkScrolledWindow" id="scrolledwindow3">
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">True</property>
+                                    <property name="hscrollbar_policy">automatic</property>
+                                    <property name="vscrollbar_policy">automatic</property>
+                                    <child>
+                                      <widget class="GtkTreeView" id="recommendedTreeView">
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                      </widget>
+                                    </child>
+                                  </widget>
+                                  <packing>
+                                    <property name="position">1</property>
+                                  </packing>
                                 </child>
                               </widget>
                             </child>
@@ -303,9 +334,12 @@
                                     <property name="hscrollbar_policy">automatic</property>
                                     <property name="vscrollbar_policy">automatic</property>
                                     <child>
-                                      <widget class="GtkTextView" id="keywordEntry">
+                                      <widget class="GtkTreeView" id="keywordTreeView">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="hover_selection">True</property>
+                                        <property name="show_expanders">False</property>
+                                        <property name="enable_grid_lines">horizontal</property>
                                       </widget>
                                     </child>
                                   </widget>
@@ -314,16 +348,45 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <widget class="GtkButton" id="updateButton">
-                                    <property name="label" translatable="yes">Update</property>
+                                  <widget class="GtkHBox" id="hbox1">
                                     <property name="visible">True</property>
-                                    <property name="can_focus">True</property>
-                                    <property name="receives_default">True</property>
+                                    <child>
+                                      <widget class="GtkButton" id="newKeywordButton">
+                                        <property name="label" translatable="yes">New Keyword</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">True</property>
+                                      </widget>
+                                      <packing>
+                                        <property name="position">1</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <widget class="GtkButton" id="deleteButton">
+                                        <property name="label" translatable="yes">Delete Keyword</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">True</property>
+                                      </widget>
+                                      <packing>
+                                        <property name="position">-1</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <widget class="GtkButton" id="updateButton">
+                                        <property name="label" translatable="yes">Update</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">True</property>
+                                      </widget>
+                                      <packing>
+                                        <property name="pack_type">end</property>
+                                        <property name="position">2</property>
+                                      </packing>
+                                    </child>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
-                                    <property name="fill">False</property>
-                                    <property name="pack_type">end</property>
                                     <property name="position">1</property>
                                   </packing>
                                 </child>
