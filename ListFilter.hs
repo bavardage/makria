@@ -180,5 +180,5 @@ filteredRows fs ls = do
   return $ filter (applyFilters fs) rows
 
 applyFilters [] _ = True
-applyFilters (f:fs) p = f p
+applyFilters fs p = all ($ p) fs
 

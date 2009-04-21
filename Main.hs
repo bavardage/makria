@@ -14,8 +14,10 @@ import DrawProgrammes
 import Ranker
 import ListFilter
 -----------------------
---chans = ["bbc1", "bbc2", "bbc3", "bbc4", "e4", "film_four", "virgin1", "more4", "dave"]
-chans = ["film_four", "bbc1"]
+chans = ["bbc1", "bbc2", "bbc3", "bbc4", "e4", "film_four", "virgin1", "more4", "dave"]
+--chans = ["film_four", "bbc1"]
+xmltvUrl = blebXMLTV chans
+--xmltvUrl = "http://static.xmltv.info/tv.xml.gz"
 rankerFilename = "keywords.dat"
 -----------------------
 
@@ -49,14 +51,14 @@ doGUI = do
   widgetShowAll splash
   timeoutAddFull (yield >> return True)
                  priorityDefaultIdle 50
-  forkIO (loadDataAndShowMainWindow splash xml chans)
+  forkIO (loadDataAndShowMainWindow splash xml)
   mainGUI
 
-loadDataAndShowMainWindow splash xml channels = do
+loadDataAndShowMainWindow splash xml = do
   window <- xmlGetWidget xml castToWindow "mainwindow"
   onDestroy window mainQuit
 
-  (cs, ps'') <- doXMLTV $ blebXMLTV channels
+  (cs, ps'') <- doXMLTV xmltvUrl
   ps' <- filterOldProgrammes ps''
 
   ranker <- (readIn rankerFilename) 
@@ -68,13 +70,13 @@ loadDataAndShowMainWindow splash xml channels = do
 
   setupProgramTreeView ref
   setupDrawingArea ref
-  print "presetup"
+  setupRecommendedProgrammesFilters ref
   setupRecommendedProgrammes ref
-  print "postsetup"
   setupRankerOptions ref ranker
 
   setupProgramTreeViewSignals ref
   setupRecommendedProgrammesSignals ref
+  setupRecommendedProgrammesFiltersSignals ref
 
   widgetHide splash
   widgetShowAll window 
@@ -147,7 +149,6 @@ setupDrawingArea ref = do
   da `onExpose` \_ -> showSelectedProgramme ref >> return True
 
 setupRecommendedProgrammes ref = do
-  print "setting up recommended programmes"
   xml <- liftM stXML $ readIORef ref
   view <- xmlGetWidget xml castToTreeView "recommendedTreeView"
   (_,model,filtermodel,_) <- liftM stModels $ readIORef ref
@@ -159,7 +160,7 @@ setupRecommendedProgrammes ref = do
 
   MV.treeViewSetModel view model
 
-  listFilterAddFilter filtermodel ((>Just 0.5).rankOf)
+--  listFilterAddFilter filtermodel ((>Just 0.5).rankOf)
 
   makeColumn view model filtermodel "Title" 1 title title
   makeColumn view model filtermodel "Time" 2 (niceTime.start) start
@@ -170,6 +171,49 @@ setupRecommendedProgrammes ref = do
     showRank p = showRank' $ (rankOf p)
     showRank' (Just r) = show r
     showRank' Nothing = "0"
+
+setupRecommendedProgrammesFilters ref = do
+  xml <- liftM stXML $ readIORef ref
+  (_,_,filtermodel,_) <- liftM stModels $ readIORef ref
+
+  listFilterRemoveAllFilters filtermodel
+
+  minimumRankCheck <- xmlGetWidget xml castToCheckButton "minimumRankCheck"
+  minimumRankScale <- xmlGetWidget xml castToHScale "minimumRankScale"
+  rankCheckActive <- toggleButtonGetActive minimumRankCheck
+  if rankCheckActive
+     then do
+       minRank <- rangeGetValue minimumRankScale
+       minRank' <- return (fromRational $ toRational minRank) :: IO Float
+       listFilterAddFilter filtermodel (((>(Just minRank')) . rankOf))
+     else return ()
+  
+  showOnlyTodayCheck <- xmlGetWidget xml castToCheckButton "showOnlyTodayCheck"
+  todayCheckActive <- toggleButtonGetActive showOnlyTodayCheck
+  if todayCheckActive
+     then do
+       currentTime <- liftM zonedTimeToUTC getZonedTime
+       filterTime' <- return $ addUTCTime (12*3600) currentTime
+       filterTime <- return $ utcToLocalTime utc filterTime'
+       listFilterAddFilter filtermodel ((<filterTime).start)
+       return ()
+     else return ()
+
+setupRecommendedProgrammesFiltersSignals ref = do
+  xml <- liftM stXML $ readIORef ref
+  minimumRankCheck <- xmlGetWidget xml castToCheckButton "minimumRankCheck"
+  minimumRankScale <- xmlGetWidget xml castToHScale "minimumRankScale"
+  showOnlyTodayCheck <- xmlGetWidget xml castToCheckButton "showOnlyTodayCheck"
+
+  onToggled minimumRankCheck $ do
+    setupRecommendedProgrammesFilters ref
+
+  afterRangeValueChanged minimumRankScale $ do
+    setupRecommendedProgrammesFilters ref
+
+  onToggled showOnlyTodayCheck $ do
+    setupRecommendedProgrammesFilters ref
+         
 
 setupRecommendedProgrammesSignals ref = do
   xml <- liftM stXML $ readIORef ref
@@ -266,9 +310,6 @@ setupRankerOptions ref ranker = do
       _ -> return ()
 
   return ()
-
-
-
 
 showSelectedProgramme ref = do
   p' <- selectedProgramme ref
