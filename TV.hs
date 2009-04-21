@@ -22,7 +22,7 @@ import qualified Data.ByteString.Lazy.Char8 as B
 import Data.Time
 import Data.List
 import System.Locale
-
+import Text.Regex
 
 
 type Title = String
@@ -122,9 +122,9 @@ doXMLTV url = do
   programmes <- runX (xml >>> processProgrammes)
   return (channels, programmes)
 
-dedoctype text = unlines $ dedoctype' $ lines text
+dedoctype text = subRegex re text ""
                  where
-                   dedoctype' (x:y:xs) = x:xs
+                   re = mkRegex "<!DOCTYPE[^>]+>"
 
 getField field = getChildren >>> hasName field >>> text 
 maybeGetField field = withDefault (getField field >>> arr Just) Nothing
