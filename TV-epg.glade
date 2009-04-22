@@ -237,6 +237,7 @@
                   <widget class="GtkNotebook" id="notebook1">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
+                    <property name="tab_hborder">4</property>
                     <child>
                       <widget class="GtkFrame" id="frame2">
                         <property name="visible">True</property>
@@ -256,7 +257,7 @@
                                     <child>
                                       <widget class="GtkTable" id="table1">
                                         <property name="visible">True</property>
-                                        <property name="n_rows">3</property>
+                                        <property name="n_rows">2</property>
                                         <property name="n_columns">2</property>
                                         <property name="homogeneous">True</property>
                                         <child>
@@ -305,12 +306,6 @@
                                             <property name="top_attach">1</property>
                                             <property name="bottom_attach">2</property>
                                           </packing>
-                                        </child>
-                                        <child>
-                                          <placeholder/>
-                                        </child>
-                                        <child>
-                                          <placeholder/>
                                         </child>
                                       </widget>
                                     </child>
@@ -478,9 +473,22 @@
                       </packing>
                     </child>
                     <child>
-                      <widget class="GtkLabel" id="label7">
+                      <widget class="GtkScrolledWindow" id="scrolledwindow4">
                         <property name="visible">True</property>
-                        <property name="label" translatable="yes">label</property>
+                        <property name="can_focus">True</property>
+                        <property name="hscrollbar_policy">automatic</property>
+                        <property name="vscrollbar_policy">automatic</property>
+                        <child>
+                          <widget class="GtkViewport" id="viewport1">
+                            <property name="visible">True</property>
+                            <property name="resize_mode">queue</property>
+                            <child>
+                              <widget class="GtkDrawingArea" id="next2HoursArea">
+                                <property name="visible">True</property>
+                              </widget>
+                            </child>
+                          </widget>
+                        </child>
                       </widget>
                       <packing>
                         <property name="position">2</property>
@@ -489,7 +497,7 @@
                     <child>
                       <widget class="GtkLabel" id="label3">
                         <property name="visible">True</property>
-                        <property name="label" translatable="yes">Unused</property>
+                        <property name="label" translatable="yes">Next 2 Hours</property>
                       </widget>
                       <packing>
                         <property name="position">2</property>

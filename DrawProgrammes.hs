@@ -1,12 +1,15 @@
 module DrawProgrammes
     (
      programmeInfoBubble,
+     showNextTwoHours,
      padding
     )
 where
 
 import Graphics.Rendering.Cairo
 import Graphics.UI.Gtk
+import Data.Time
+import Control.Monad
 
 import TV
 
@@ -33,6 +36,76 @@ programmeToPangoMarkup cs p = titleToMarkup p ++ "\n"
       descriptionToMarkup p = em $ description p
       em = escapeMarkup
 
+
+twoHoursHeight = 30
+twoHoursPadding = 3
+
+showNextTwoHours :: (WidgetClass d) => d -> [Channel] -> [TVProgramme] -> IO()
+showNextTwoHours widget cs ps = do
+  localTime <- liftM zonedTimeToLocalTime getZonedTime
+  timezone <- getCurrentTimeZone
+  let currentTime = localTimeToUTC utc localTime
+      twoHoursTime = addUTCTime 7200 currentTime
+      ps' = filter (\p -> (utcStop p > currentTime)
+                         && (utcStart p < twoHoursTime)) ps
+  
+  showChannels widget cs ps' 100 0 currentTime
+
+showChannels _ [] _  _ _ _ = return ()
+showChannels widget (c:cs) ps' xoffset yoffset currentTime = do
+  showChannel widget c ps' xoffset yoffset currentTime
+  showChannels widget cs ps' xoffset (yoffset+twoHoursHeight) currentTime
+
+showChannel widget c ps xoffset yoffset currentTime = do
+  style <- widgetGetStyle widget
+
+  top <- styleGetDark style StateSelected
+  bottom <- styleGetLight style StateSelected
+  source <- styleGetText style StateSelected
+ 
+  gradientRoundedRectWithMarkup widget 
+                                    0 yoffset xoffset twoHoursHeight 
+                                    0 twoHoursPadding 
+                                    source top bottom 
+                                    (chanName c)
+
+  mapM (showProgramme widget xoffset yoffset currentTime) channelProgrammes
+    where
+      channelProgrammes = filter (\p -> (channel p) == (chanId c)) ps
+
+showProgramme widget xoffset yoffset currentTime p = do
+  win <- widgetGetDrawWindow widget
+  (w,_) <- drawableGetSize win
+  let totalWidth = (fromIntegral w) - xoffset
+      widthPerMinute = totalWidth/120 --  width divided by two hours
+      width = widthPerMinute * fromIntegral (programmeLengthMinutes p)
+      timeOffset = fromRational $ toRational (diffUTCTime (utcStart p) currentTime) / 60
+      leftOffset = timeOffset * widthPerMinute + xoffset
+
+
+  print ("current time is" ++ niceTime currentTime)
+  print ("programme start is" ++ niceTime (start p))
+  print ("programme utc start is " ++ niceTime (utcStart p))
+  if leftOffset >= xoffset
+     then programmeTitleBubble widget p leftOffset yoffset width twoHoursHeight
+     else do
+       let width' = width + (leftOffset - xoffset)
+           leftOffset' = xoffset
+       programmeTitleBubble widget p leftOffset' yoffset width' twoHoursHeight
+
+programmeTitleBubble :: (WidgetClass d) => d -> TVProgramme -> Double -> Double -> Double -> Double -> IO ()
+programmeTitleBubble widget p x y w h = do
+  win <- widgetGetDrawWindow widget
+  style <- widgetGetStyle widget
+  let radius = 5
+  let markup = "<span size=\"x-small\"><b>" ++ title p ++ "</b>: " ++ niceHour (start p) ++ "</span>"
+
+  top <- styleGetDark style StateSelected
+  bottom <- styleGetLight style StateSelected
+  source <- styleGetText style StateSelected
+
+  gradientRoundedRectWithMarkup widget x y w h radius twoHoursPadding source top bottom markup
+
 programmeInfoBubble :: (WidgetClass d) => d -> [Channel] -> TVProgramme -> IO ()
 programmeInfoBubble widget cs p = do
   win <- widgetGetDrawWindow widget
@@ -49,12 +122,16 @@ programmeInfoBubble widget cs p = do
   bottom <- styleGetLight style StateSelected
   source <- styleGetText style StateSelected --todo: respond to hover?
 
---  ctx <- cairoCreateContext Nothing
+  gradientRoundedRectWithMarkup widget x y w h radius padding source top bottom markup
+
+
+gradientRoundedRectWithMarkup widget x y w h radius padding source top bottom markup = do
   ctx <- widgetCreatePangoContext widget
+  drawable <- widgetGetDrawWindow widget
   lay <- layoutEmpty ctx
   layoutSetMarkup lay markup
   layoutSetWidth lay (Just (w - 2*radius - 2*padding))
-  renderWithDrawable win $ do
+  renderWithDrawable drawable $ do
     save
     gradientRoundedRect (x+padding) (y+padding) (w-2*padding) (h-2*padding) 
                         radius source top bottom

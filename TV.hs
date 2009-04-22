@@ -9,6 +9,7 @@ module TV
      timeBetweenProgrammesMinutes,
      utcStart, utcStop,
      niceTime,
+     niceHour,
      areTheSame,
      channelName,
      ) where
@@ -69,6 +70,9 @@ timeBetweenProgrammesMinutes p p' = floor $ (/ 60) $ (diffUTCTime
 
 niceTime :: (FormatTime t) => t -> String
 niceTime = formatTime defaultTimeLocale "%a %e %H:%M"
+
+niceHour :: (FormatTime t) => t -> String
+niceHour = formatTime defaultTimeLocale "%H:%M" 
 
 channelName :: [Channel] -> TVProgramme -> String
 channelName [] _ = "unknown"

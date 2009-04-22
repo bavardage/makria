@@ -70,6 +70,7 @@ loadDataAndShowMainWindow splash xml = do
 
   setupProgramTreeView ref
   setupDrawingArea ref
+  setupNextTwoHours ref
   setupRecommendedProgrammesFilters ref
   setupRecommendedProgrammes ref
   setupRankerOptions ref ranker
@@ -228,7 +229,7 @@ setupRecommendedProgrammesSignals ref = do
         cIter <- MV.treeModelSortConvertIterToChildIter model iter
         p <- MV.treeModelGetRow filtermodel cIter
         selectProgramme ref p
-      
+     
 
 setupRankerOptions ref ranker = do
   xml <- liftM stXML $ readIORef ref
@@ -311,6 +312,11 @@ setupRankerOptions ref ranker = do
 
   return ()
 
+setupNextTwoHours ref = do
+  xml <- liftM stXML $ readIORef ref
+  n2h <- xmlGetWidget xml castToDrawingArea "next2HoursArea"
+  n2h `onExpose` \_ -> displayNextTwoHours ref >> return True
+
 showSelectedProgramme ref = do
   p' <- selectedProgramme ref
   case p' of Nothing -> return ()
@@ -351,12 +357,13 @@ selectProgramme ref p = do
              else do
                nIter <- treeModelIterNext model iter
                selectProgramme' view nIter model rawmodel p
-                   
 
---I WANT A TREE PATH!
--- find the correct iter for top level (model)
-
-                  
+displayNextTwoHours ref = do
+  xml <- liftM stXML $ readIORef ref
+  cs <- liftM stChans $ readIORef ref
+  ps <- liftM stProgs $ readIORef ref
+  next2HoursArea <- xmlGetWidget xml castToDrawingArea "next2HoursArea"
+  showNextTwoHours next2HoursArea cs ps
 
 displayProgrammeDetail ref p = do
   xml <- liftM stXML $ readIORef ref
