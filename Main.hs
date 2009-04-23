@@ -13,32 +13,15 @@ import TV
 import DrawProgrammes
 import Ranker
 import ListFilter
+import GlobalState
 -----------------------
-chans = ["bbc1", "bbc2", "bbc3", "bbc4", "e4", "film_four", "virgin1", "more4", "dave"]
+chans = 
+    ["bbc1", "bbc2", "itv1", "ch4", "five", "itv2", "bbc3", "bbc4", "itv3", "sky_three", "ch4%2B1", "more4", "film_four", "4music", "dave", "virgin1", "tmf", "dave%2B1", "itv2%2B1", "e4", "e4%2B1", "five_us", "fiver"]
 --chans = ["film_four", "bbc1"]
 xmltvUrl = blebXMLTV chans
 --xmltvUrl = "http://static.xmltv.info/tv.xml.gz"
 rankerFilename = "keywords.dat"
 -----------------------
-
-data GlobalState = GlobalState 
-    {stXML :: GladeXML,
-     stChans :: [Channel],
-     stProgs :: [TVProgramme],
-     stModels :: (TypedTreeModelSort TVProgramme, 
-                  TypedTreeModelSort TVProgramme,
-                  ListFilter TVProgramme,
-                  ListStore TVProgramme)
-                                 }
-
-type StateRef a = IORef (GlobalState)
-
-newGlobalStateRef xml cs ps mos = newIORef (GlobalState {stXML = xml, 
-                                                       stChans = cs, 
-                                                       stProgs = ps,
-                                                       stModels = mos
-                                                      })
-
 
 main = doGUI 
   
@@ -316,6 +299,7 @@ setupNextTwoHours ref = do
   xml <- liftM stXML $ readIORef ref
   n2h <- xmlGetWidget xml castToDrawingArea "next2HoursArea"
   n2h `onExpose` \_ -> displayNextTwoHours ref >> return True
+  n2h `onSizeRequest` (nextTwoHoursSizeRequest ref)
 
 showSelectedProgramme ref = do
   p' <- selectedProgramme ref

@@ -2,6 +2,7 @@ module DrawProgrammes
     (
      programmeInfoBubble,
      showNextTwoHours,
+     nextTwoHoursSizeRequest,
      padding
     )
 where
@@ -9,9 +10,11 @@ where
 import Graphics.Rendering.Cairo
 import Graphics.UI.Gtk
 import Data.Time
+import Data.IORef
 import Control.Monad
 
 import TV
+import GlobalState
 
 padding = 10 :: Double
 
@@ -37,8 +40,13 @@ programmeToPangoMarkup cs p = titleToMarkup p ++ "\n"
       em = escapeMarkup
 
 
-twoHoursHeight = 30
-twoHoursPadding = 3
+twoHoursHeight = 30 :: Double
+twoHoursPadding = 3 :: Double
+
+nextTwoHoursSizeRequest ref = do
+  cs <- liftM stChans $ readIORef ref
+  let height = twoHoursHeight * fromIntegral (length cs)
+  return $ Requisition 0 (round height)
 
 showNextTwoHours :: (WidgetClass d) => d -> [Channel] -> [TVProgramme] -> IO()
 showNextTwoHours widget cs ps = do
@@ -83,9 +91,6 @@ showProgramme widget xoffset yoffset currentTime p = do
       leftOffset = timeOffset * widthPerMinute + xoffset
 
 
-  print ("current time is" ++ niceTime currentTime)
-  print ("programme start is" ++ niceTime (start p))
-  print ("programme utc start is " ++ niceTime (utcStart p))
   if leftOffset >= xoffset
      then programmeTitleBubble widget p leftOffset yoffset width twoHoursHeight
      else do
@@ -98,7 +103,7 @@ programmeTitleBubble widget p x y w h = do
   win <- widgetGetDrawWindow widget
   style <- widgetGetStyle widget
   let radius = 5
-  let markup = "<span size=\"x-small\"><b>" ++ title p ++ "</b>: " ++ niceHour (start p) ++ "</span>"
+  let markup = "<span size=\"x-small\"><b>" ++ (escapeMarkup $ title p) ++ "</b>: " ++ niceHour (start p) ++ "</span>"
 
   top <- styleGetDark style StateSelected
   bottom <- styleGetLight style StateSelected
